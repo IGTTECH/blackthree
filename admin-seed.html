@@ -3,10 +3,6 @@
 <head>
   <meta charset="utf-8">
   <title>Seed Admin UIDs</title>
-  <script src="https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js"></script>
-  <script src="assets/firebase-config.js"></script>
 </head>
 <body>
   <h2>Seed Admin UIDs</h2>
@@ -21,8 +17,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-auth.js";
     import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-firestore.js";
+    import { firebaseConfig } from "./assets/firebase-config.js"; // ✅ make sure this path is correct
 
-    // Initialize Firebase with your config (from firebase-config.js)
+    // --- Initialize ---
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
