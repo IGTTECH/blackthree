@@ -1,4 +1,4 @@
-// auth.js (updated with plan-aware guardPage)
+// auth.js (updated with plan-aware guardPage + export auth)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { 
   getAuth, createUserWithEmailAndPassword, sendEmailVerification, 
@@ -24,6 +24,9 @@ if(!_checkFirebaseConfig(firebaseConfig)){
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// ✅ Export auth so register.html can import it
+export { auth, db };
 
 // Register user (only Auth, wait for verification before Firestore write)
 export async function registerUser(email, password, plan) {
