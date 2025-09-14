@@ -23,6 +23,9 @@
     const auth = firebase.getAuth(app);
     const db = firebase.getFirestore(app);
 
+    // Import Firestore helpers
+    const { doc, setDoc, serverTimestamp } = firebase.firestore;
+
     const log = (msg) => {
       document.getElementById("log").textContent += msg + "\n";
     };
@@ -32,10 +35,10 @@
       if (!uid) return alert("Please enter a UID");
 
       try {
-        const docRef = firebase.doc(db, "admins", uid);
-        await firebase.setDoc(docRef, {
+        const docRef = doc(db, "admins", uid);
+        await setDoc(docRef, {
           isAdmin: true,
-          createdAt: firebase.serverTimestamp(),
+          createdAt: serverTimestamp(),
           seeded: true
         });
         log("✅ Added admin UID: " + uid);
