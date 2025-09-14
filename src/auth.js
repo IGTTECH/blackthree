@@ -1,4 +1,4 @@
-// auth.js (updated with plan-aware guardPage + export auth)
+// auth.js (updated with real firebaseConfig + plan-aware guardPage + export auth)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { 
   getAuth, createUserWithEmailAndPassword, sendEmailVerification, 
@@ -7,7 +7,16 @@ import {
 import { 
   getFirestore, doc, setDoc, getDoc, updateDoc 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js";
+
+// ✅ Real Firebase config (from your Firebase console)
+const firebaseConfig = {
+  apiKey: "AIzaSyBGBL3C-zTw6vwThkIuE6mfFanLa-emJA",
+  authDomain: "igt-project-12443.firebaseapp.com",
+  projectId: "igt-project-12443",
+  storageBucket: "igt-project-12443.firebasestorage.app",
+  messagingSenderId: "458543908033",
+  appId: "1:458543908033:web:5781a612406ef2dfe3c824"
+};
 
 // Runtime sanity check for firebaseConfig placeholders
 function _checkFirebaseConfig(cfg){
@@ -18,14 +27,14 @@ function _checkFirebaseConfig(cfg){
   return true;
 }
 if(!_checkFirebaseConfig(firebaseConfig)){
-  console.warn("Firebase config appears to contain placeholders. Replace src/firebase-config.js with your project config to enable Firebase.");
+  console.warn("⚠️ Firebase config appears to contain placeholders. Replace with your project config.");
 }
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ✅ Export auth so register.html can import it
+// ✅ Export auth + db so other pages can import them
 export { auth, db };
 
 // Register user (only Auth, wait for verification before Firestore write)
