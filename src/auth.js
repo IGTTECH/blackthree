@@ -101,7 +101,7 @@ export async function guardPage(requiredPlan=null) {
       const isAdmin = (await getDoc(doc(db, "admins", user.uid))).exists();
       if (isAdmin) return resolve(true);
       if (!data.paid) {
-        window.location.href = "/payment.html";
+        window.location.href = "/verify.html";
         return reject("Payment required");
       }
       if (requiredPlan && data.plan !== requiredPlan) {
