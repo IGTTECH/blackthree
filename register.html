@@ -75,8 +75,15 @@
 
   <!-- Firebase Auth + Logic -->
   <script type="module">
-    import { auth, registerUser } from "./src/auth.js";
-    import { onAuthStateChanged, reload } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, reload } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from "./src/firebase-config.js";
+
+    // Init
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
     const form = document.getElementById('registerForm');
     const msg = document.getElementById('msg');
@@ -91,13 +98,28 @@
       const email = document.getElementById('r-email').value.trim();
       const password = document.getElementById('r-password').value;
       const plan = document.getElementById('r-plan').value;
+      const firstName = form.firstName.value;
+      const lastName = form.lastName.value;
+      const whatsapp = form.whatsapp.value;
+      const language = form.language.value;
+      const course = document.getElementById('r-course').value;
 
       msg.innerText = "Creating account...";
 
       try {
-        const res = await registerUser(email, password, plan);
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCred.user);
+
+        // Save to Firestore
+        await setDoc(doc(db, "users", userCred.user.uid), {
+          firstName, lastName, whatsapp, email,
+          language, course, plan,
+          paid: false,
+          createdAt: serverTimestamp()
+        });
+
         msg.style.color = "green";
-        msg.innerText = res.message || "Account created. Check your email for verification.";
+        msg.innerText = "Account created. Check your email for verification.";
         verifySection.style.display = "block";
       } catch(err) {
         msg.style.color = "red";
