@@ -1,138 +1,133 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Verify Email & Payment</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; padding:20px; max-width:720px; margin:auto;}
-    .card{padding:20px;border:1px solid #e6e6e6;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.03);}
-    .btn{display:inline-block;padding:10px 16px;border-radius:6px;background:#1a73e8;color:#fff;border:none;cursor:pointer;}
-    .muted{color:#666;margin-top:8px;}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<title>Email Verification - IGT Tech</title>
+<script src="https://www.paypal.com/sdk/js?client-id=AVEX1YCYhqqBh1UB3qas6vKAmRDHKk5ro8z5I65vKco3B5-NsrnbYSqkYTcwUQFyuop96hhmOkvB92-k&currency=USD"></script>
 </head>
-<body>
-  <div class="card">
-    <h2>Verify your email</h2>
-    <p class="muted">Please confirm you have clicked the verification link sent to your email, then press the button below to continue to payment.</p>
-    <div id="status" class="muted"></div>
-    <button id="checkVerificationBtn" class="btn">I have verified my email</button>
-    <span id="spinner" style="display:none;margin-left:8px;">Checking...</span>
-    <div id="paypal-section" style="margin-top:16px; display:none;">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+    <h2 class="text-xl font-bold mb-4">Verify Your Email</h2>
+    <p class="text-sm mb-4">We’ve sent a verification email. Please check your inbox, then click below after verifying.</p>
+
+    <button id="verify-check-btn" class="bg-green-600 text-white px-4 py-2 rounded">
+      I have verified my email
+    </button>
+    <span id="verify-spinner" style="display:none;margin-left:8px;">Checking...</span>
+
+    <!-- PayPal Section -->
+    <div id="paypal-container" style="margin-top:16px; display:none;">
       <div id="paypal-button-container"></div>
     </div>
+
+    <p id="msg" class="text-sm mt-3 text-red-600"></p>
   </div>
 
-  <!-- Firebase libs (assumes you have firebase-config in src/js/firebase-config.js) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="src/js/firebase-config.js"></script>
+  <script type="module">
+    import { auth } from "./src/auth.js";
+    import { reload, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { firebaseConfig } from "./src/firebase-config.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 
-  <!-- PayPal SDK placeholder - replace YOUR_CLIENT_ID -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AVEX1YCYhqqBh1UB3qas6vKAmRDHKk5ro8z5I65vKco3B5-NsrnbYSqkYTcwUQFyuop96hhmOkvB92-k
-&currency=USD"></script>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-  <script>
-    (function(){
-      const db = firebase.firestore();
-      const btn = document.getElementById('checkVerificationBtn');
-      const spinner = document.getElementById('spinner');
-      const status = document.getElementById('status');
-      const paypalSection = document.getElementById('paypal-section');
-      const paypalContainer = document.getElementById('paypal-button-container');
+    const msg = document.getElementById("msg");
+    const verifyBtn = document.getElementById("verify-check-btn");
+    const spinner = document.getElementById("verify-spinner");
+    const paypalDiv = document.getElementById("paypal-container");
 
-      // Known dashboard files in project for redirection helper
-      const DASHBOARDS = ['gukora-phone-dashboard.html', 'kubaka-imbuga-dashboard.html', 'kujenga-tovuti-dashboard.html', 'mobile-rep-dashboard.html', 'ufundi-simu-dashboard.html', 'website-dev-dashboard.html'];
-
-      function findDashboardForPlan(planValue){
-        // attempt to find a dashboard filename that includes a key substring from planValue
-        const key = planValue.toLowerCase();
-        for(let f of DASHBOARDS){
-          if(f.toLowerCase().includes(key)) return f;
-        }
-        // fallback to first dashboard
-        return DASHBOARDS.length ? DASHBOARDS[0] : 'dashboard.html';
+    // Check user state
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
       }
 
-      btn.addEventListener('click', async function(){
-        spinner.style.display = 'inline';
-        btn.disabled = true;
-        status.textContent = 'Checking verification...';
-        try{
-          const user = firebase.auth().currentUser;
-          if(!user){
-            status.textContent = 'Not signed in. Please login first.';
-            spinner.style.display='none';
-            btn.disabled=false;
-            return;
+      await reload(user);
+
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+      const data = snap.exists() ? snap.data() : {};
+
+      if (user.emailVerified) {
+        if (data.paid) {
+          // Already paid → go straight to dashboard
+          if (data.plan) {
+            window.location.href = data.plan + "-dashboard.html";
+          } else {
+            msg.innerText = "Paid but no plan assigned. Contact admin.";
           }
-          await user.reload();
-          const updated = firebase.auth().currentUser;
-          if(!updated.emailVerified){
-            status.textContent = 'Email not verified yet. Please click the link in your email and try again.';
-            spinner.style.display='none';
-            btn.disabled=false;
-            return;
-          }
-          status.textContent = 'Email verified. Preparing payment...';
+        } else {
+          // Verified but unpaid → show PayPal
+          paypalDiv.style.display = "block";
+          loadPayPalButton(data.plan || "website-development");
+        }
+      }
+    });
 
-          // fetch user doc for plan & price
-          const doc = await db.collection('users').doc(updated.uid).get();
-          if(!doc.exists){
-            status.textContent = 'User data not found. Contact admin.';
-            spinner.style.display='none';
-            btn.disabled=false;
-            return;
-          }
-          const data = doc.data();
-          const amount = data.price || 0;
-          const plan = data.plan || data.course || '';
-          if(!amount || amount<=0){
-            status.textContent = 'Payment amount not available. Contact admin.';
-            spinner.style.display='none';
-            btn.disabled=false;
-            return;
-          }
+    // Manual verify button
+    verifyBtn.addEventListener("click", async () => {
+      spinner.style.display = "inline";
+      if (auth.currentUser) {
+        await reload(auth.currentUser);
+        if (auth.currentUser.emailVerified) {
+          spinner.style.display = "none";
+          msg.innerText = "Email verified! Please complete payment.";
+          paypalDiv.style.display = "block";
+        } else {
+          spinner.style.display = "none";
+          msg.innerText = "Email not verified yet. Please check your inbox.";
+        }
+      }
+    });
 
-          paypalSection.style.display = 'block';
-          status.textContent = 'Loading PayPal...';
+    // PayPal setup
+    function loadPayPalButton(plan) {
+      const prices = {
+        "website-development": 20,
+        "mobile-repairing": 10,
+        "kujenga-tovuti": 22,
+        "ufundi-simu": 11,
+        "kubaka-imbuga": 25,
+        "gukora-phone": 12
+      };
+      paypal.Buttons({
+        createOrder: (data, actions) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: prices[plan] || 10 } }]
+          });
+        },
+        onApprove: (data, actions) => {
+          return actions.order.capture().then(async details => {
+            msg.innerText = "Payment completed. Saving...";
 
-          // Render PayPal Buttons
-          if(typeof paypal === 'undefined'){
-            status.textContent = 'PayPal SDK not loaded. Contact admin.';
-            spinner.style.display='none';
-            btn.disabled=false;
-            return;
-          }
+            if (auth.currentUser) {
+              const ref = doc(db, "users", auth.currentUser.uid);
+              const snap = await getDoc(ref);
+              if (snap.exists()) {
+                await updateDoc(ref, { paid: true, plan });
+              } else {
+                await setDoc(ref, {
+                  email: auth.currentUser.email,
+                  paid: true,
+                  plan,
+                  createdAt: new Date().toISOString()
+                });
+              }
+            }
 
-          paypal.Buttons({
-            createOrder: function(data, actions){
-              return actions.order.create({
-                purchase_units: [{ amount: { value: amount.toString() } , description: plan }]
-              });
-            },
-            onApprove: function(data, actions){
-              return actions.order.capture().then(async function(details){
-                // mark user as paid
-                try{ await db.collection('users').doc(updated.uid).set({ paid: true, paidAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); }catch(e){ console.error('update paid error',e); }
-                // redirect to appropriate dashboard
-                const target = findDashboardForPlan(plan);
-                window.location.href = target;
-              });
-            },
-            onError: function(err){ console.error('PayPal error', err); alert('Payment error.'); }
-          }).render('#paypal-button-container');
-
-          status.textContent = 'PayPal ready. Please complete payment.';
-        }catch(e){
-          console.error(e);
-          status.textContent = 'An error occurred. Check console.';
-        }finally{ spinner.style.display='none'; btn.disabled=false; }
-      });
-
-    })();  
+            msg.innerText = "Payment successful! Redirecting...";
+            setTimeout(() => {
+              window.location.href = plan + "-dashboard.html";
+            }, 1500);
+          });
+        }
+      }).render("#paypal-button-container");
+    }
   </script>
-
 </body>
 </html>
