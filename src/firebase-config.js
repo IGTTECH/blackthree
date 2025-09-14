@@ -2,7 +2,7 @@
 // IMPORTANT: Replace these with your actual Firebase project configuration
 // (Firebase console -> Project settings -> General -> Your apps -> SDK setup).
 
-export const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyBGBL3C-zTw6vwvIhktUE6mFfanLa-emJA",
   authDomain: "igt-project-12443.firebaseapp.com",
   projectId: "igt-project-12443",
