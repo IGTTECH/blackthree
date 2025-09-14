@@ -73,17 +73,25 @@
     </div>
   </div>
 
-  <!-- Firebase Auth + Logic -->
+  <!-- Firebase Config + Auth -->
   <script type="module">
+    // ✅ Firebase config from your project settings
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, reload } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { firebaseConfig } from "./src/firebase-config.js";
+    import { getAuth, onAuthStateChanged, reload } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-    // Init
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGBL3C-zTw6vwThkIuE6mfFanLa-emJA",
+      authDomain: "igt-project-12443.firebaseapp.com",
+      projectId: "igt-project-12443",
+      storageBucket: "igt-project-12443.firebasestorage.app",
+      messagingSenderId: "458543908033",
+      appId: "1:458543908033:web:5781a612406ef2dfe3c824"
+    };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
+
+    import { registerUser } from "./src/auth.js";
 
     const form = document.getElementById('registerForm');
     const msg = document.getElementById('msg');
@@ -98,28 +106,13 @@
       const email = document.getElementById('r-email').value.trim();
       const password = document.getElementById('r-password').value;
       const plan = document.getElementById('r-plan').value;
-      const firstName = form.firstName.value;
-      const lastName = form.lastName.value;
-      const whatsapp = form.whatsapp.value;
-      const language = form.language.value;
-      const course = document.getElementById('r-course').value;
 
       msg.innerText = "Creating account...";
 
       try {
-        const userCred = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(userCred.user);
-
-        // Save to Firestore
-        await setDoc(doc(db, "users", userCred.user.uid), {
-          firstName, lastName, whatsapp, email,
-          language, course, plan,
-          paid: false,
-          createdAt: serverTimestamp()
-        });
-
+        const res = await registerUser(email, password, plan);
         msg.style.color = "green";
-        msg.innerText = "Account created. Check your email for verification.";
+        msg.innerText = res.message || "Account created. Check your email for verification.";
         verifySection.style.display = "block";
       } catch(err) {
         msg.style.color = "red";
