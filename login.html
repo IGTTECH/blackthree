@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+
+<!-- PayPal SDK (replace with your real client ID) -->
+<script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&vault=false"></script>
+
+<script>
+  function showError(msg){
+    document.getElementById('error-message').innerText = msg;
+  }
+</script>
+
+<title>Login - IGT Tech</title>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
+    <h2 class="text-2xl font-bold mb-4">Welcome back</h2>
+    <form id="loginForm" class="space-y-3">
+      <input id="l-email" type="email" placeholder="Email" required class="p-3 border rounded w-full" />
+      <input id="l-password" type="password" placeholder="Password" required class="p-3 border rounded w-full" />
+      <div id="loginMsg" class="text-sm text-red-600"></div>
+      <button type="submit" class="w-full bg-green-600 text-white p-3 rounded">Login</button>
+      <div class="flex justify-between text-sm mt-3">
+        <a href="forgot.html" class="text-blue-600">Forgot password?</a>
+        <a href="register.html" class="text-blue-600">Create account</a>
+      </div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { loginUser } from "./src/auth.js";
+
+    document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+
+      const email = document.getElementById('l-email').value.trim();
+      const password = document.getElementById('l-password').value;
+      const msg = document.getElementById('loginMsg');
+
+      msg.style.color = 'black';
+      msg.innerText = "Signing in...";
+
+      try {
+        const res = await loginUser(email, password);
+
+        if(!res.success){
+          msg.style.color = 'red';
+          msg.innerText = res.error || res.message || "Login failed";
+          return;
+        }
+
+        // ✅ If login succeeds
+        if(res.isAdmin){
+          window.location.href = "src/admin-add-paid.html";
+          return;
+        }
+
+        if(res.paid){
+          // redirect to user dashboard based on plan
+          const plan = res.plan || "";
+          const map = {
+            "website-development":"website-dev-dashboard.html",
+            "mobile-repairing":"mobile-rep-dashboard.html",
+            "kujenga-tovuti":"kujenga-tovuti-dashboard.html",
+            "ufundi-simu":"ufundi-simu-dashboard.html",
+            "kubaka-imbuga":"kubaka-imbuga-dashboard.html"
+          };
+          const dest = map[plan] || "index.html";
+          window.location.href = dest;
+        }else{
+          alert("Your account is not marked as paid. Redirecting to payment page...");
+          window.location.href = "payment.html";
+        }
+
+      } catch(err){
+        msg.style.color = 'red';
+        msg.innerText = err.message || "Login failed";
+        showError(err.message);
+      }
+    });
+  </script>
+
+  <div id="error-message" style="color:red;margin-top:10px;"></div>
+</body>
+</html>

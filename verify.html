@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Verify Email & Payment</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; padding:20px; max-width:720px; margin:auto;}
+    .card{padding:20px;border:1px solid #e6e6e6;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.03);}
+    .btn{display:inline-block;padding:10px 16px;border-radius:6px;background:#1a73e8;color:#fff;border:none;cursor:pointer;}
+    .muted{color:#666;margin-top:8px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Verify your email</h2>
+    <p class="muted">Please confirm you have clicked the verification link sent to your email, then press the button below to continue to payment.</p>
+    <div id="status" class="muted"></div>
+    <button id="checkVerificationBtn" class="btn">I have verified my email</button>
+    <span id="spinner" style="display:none;margin-left:8px;">Checking...</span>
+    <div id="paypal-section" style="margin-top:16px; display:none;">
+      <div id="paypal-button-container"></div>
+    </div>
+  </div>
+
+  <!-- Firebase libs (assumes you have firebase-config in src/js/firebase-config.js) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="src/js/firebase-config.js"></script>
+
+  <!-- PayPal SDK placeholder - replace YOUR_CLIENT_ID -->
+  <script src="https://www.paypal.com/sdk/js?client-id=YOUR_CLIENT_ID&currency=USD"></script>
+
+  <script>
+    (function(){
+      const db = firebase.firestore();
+      const btn = document.getElementById('checkVerificationBtn');
+      const spinner = document.getElementById('spinner');
+      const status = document.getElementById('status');
+      const paypalSection = document.getElementById('paypal-section');
+      const paypalContainer = document.getElementById('paypal-button-container');
+
+      // Known dashboard files in project for redirection helper
+      const DASHBOARDS = ['gukora-phone-dashboard.html', 'kubaka-imbuga-dashboard.html', 'kujenga-tovuti-dashboard.html', 'mobile-rep-dashboard.html', 'ufundi-simu-dashboard.html', 'website-dev-dashboard.html'];
+
+      function findDashboardForPlan(planValue){
+        // attempt to find a dashboard filename that includes a key substring from planValue
+        const key = planValue.toLowerCase();
+        for(let f of DASHBOARDS){
+          if(f.toLowerCase().includes(key)) return f;
+        }
+        // fallback to first dashboard
+        return DASHBOARDS.length ? DASHBOARDS[0] : 'dashboard.html';
+      }
+
+      btn.addEventListener('click', async function(){
+        spinner.style.display = 'inline';
+        btn.disabled = true;
+        status.textContent = 'Checking verification...';
+        try{
+          const user = firebase.auth().currentUser;
+          if(!user){
+            status.textContent = 'Not signed in. Please login first.';
+            spinner.style.display='none';
+            btn.disabled=false;
+            return;
+          }
+          await user.reload();
+          const updated = firebase.auth().currentUser;
+          if(!updated.emailVerified){
+            status.textContent = 'Email not verified yet. Please click the link in your email and try again.';
+            spinner.style.display='none';
+            btn.disabled=false;
+            return;
+          }
+          status.textContent = 'Email verified. Preparing payment...';
+
+          // fetch user doc for plan & price
+          const doc = await db.collection('users').doc(updated.uid).get();
+          if(!doc.exists){
+            status.textContent = 'User data not found. Contact admin.';
+            spinner.style.display='none';
+            btn.disabled=false;
+            return;
+          }
+          const data = doc.data();
+          const amount = data.price || 0;
+          const plan = data.plan || data.course || '';
+          if(!amount || amount<=0){
+            status.textContent = 'Payment amount not available. Contact admin.';
+            spinner.style.display='none';
+            btn.disabled=false;
+            return;
+          }
+
+          paypalSection.style.display = 'block';
+          status.textContent = 'Loading PayPal...';
+
+          // Render PayPal Buttons
+          if(typeof paypal === 'undefined'){
+            status.textContent = 'PayPal SDK not loaded. Contact admin.';
+            spinner.style.display='none';
+            btn.disabled=false;
+            return;
+          }
+
+          paypal.Buttons({
+            createOrder: function(data, actions){
+              return actions.order.create({
+                purchase_units: [{ amount: { value: amount.toString() } , description: plan }]
+              });
+            },
+            onApprove: function(data, actions){
+              return actions.order.capture().then(async function(details){
+                // mark user as paid
+                try{ await db.collection('users').doc(updated.uid).set({ paid: true, paidAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); }catch(e){ console.error('update paid error',e); }
+                // redirect to appropriate dashboard
+                const target = findDashboardForPlan(plan);
+                window.location.href = target;
+              });
+            },
+            onError: function(err){ console.error('PayPal error', err); alert('Payment error.'); }
+          }).render('#paypal-button-container');
+
+          status.textContent = 'PayPal ready. Please complete payment.';
+        }catch(e){
+          console.error(e);
+          status.textContent = 'An error occurred. Check console.';
+        }finally{ spinner.style.display='none'; btn.disabled=false; }
+      });
+
+    })();  
+  </script>
+
+</body>
+</html>
